@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador GG - Improveet</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const NAVY = "#1E2761", DARK = "#0F1A3D", GOLD = "#E6B422", ICE = "#CADCFC";
+
+        const rounds = [
+          {
+            code: "01",
+            theme: "Culturización",
+            scenario: "Una consultora nueva, con 2 meses en Improveet, toma una decisión frente a un cliente que vos NO habrías tomado. El cliente no se quejó, pero la decisión se aleja de cómo la firma viene trabajando hace años. Te enterás por un tercero.",
+            q: "¿Qué hacés?",
+            options: [
+              {
+                label: "Reviertes la decisión y le marcás el error en privado.",
+                type: "control",
+                reaction: "Resolvés lo inmediato, pero reforzás la dependencia del control directo.",
+                theory: "Schein: estás actuando sobre el artefacto (la decisión puntual) sin trabajar las presunciones básicas. La próxima vez va a volver a pasar con otra persona.",
+                score: { cultura: 1, delegacion: 0, escala: 0 },
+              },
+              {
+                label: "La dejás pasar y abrís una retro del equipo para discutir el criterio.",
+                type: "culture",
+                reaction: "Transformás un caso individual en aprendizaje colectivo. Lento al principio, escalable después.",
+                theory: "Schein: trabajás sobre valores declarados y generás artefactos (rituales de retro). Senge: aprendizaje organizacional a partir de casos reales.",
+                score: { cultura: 3, delegacion: 2, escala: 2 },
+              },
+              {
+                label: "Escribís un playbook sobre 'cómo decidimos frente a clientes' y lo compartís.",
+                type: "process",
+                reaction: "Buena intención, pero un documento sin conversación previa rara vez cambia comportamientos.",
+                theory: "Kotter: saltear la coalición y las victorias tempranas suele terminar en un documento que nadie lee.",
+                score: { cultura: 1, delegacion: 1, escala: 2 },
+              },
+            ],
+          },
+          {
+            code: "02",
+            theme: "No dependencia operativa",
+            scenario: "Un líder técnico clave renuncia. En la entrevista de salida te dice: 'siento que no puedo decidir nada sin consultarte, y cuando decido, después lo revisás'. Tenés 3 proyectos abiertos que él lideraba.",
+            q: "¿Primera medida la semana que viene?",
+            options: [
+              {
+                label: "Tomás vos los 3 proyectos hasta encontrar reemplazo.",
+                type: "firefighting",
+                reaction: "Apagás el incendio y confirmás el diagnóstico que te dio el que se fue.",
+                theory: "Mintzberg: reforzás la adhocracia con núcleo estratégico y operativo fusionados. Herzberg: el próximo líder va a leer la señal.",
+                score: { cultura: 0, delegacion: 0, escala: 0 },
+              },
+              {
+                label: "Promovés a dos consultores con autoridad real de cierre y un variable ligado al P&L.",
+                type: "empowerment",
+                reaction: "Arriesgás calidad en el corto plazo a cambio de arquitectura sostenible.",
+                theory: "Mintzberg: empezás a separar el núcleo estratégico del operativo. Herzberg: enriquecimiento del puesto genuino (autoridad + responsabilidad + recompensa).",
+                score: { cultura: 2, delegacion: 3, escala: 3 },
+              },
+              {
+                label: "Contratás a alguien senior externo para reemplazarlo rápido.",
+                type: "hire",
+                reaction: "Resolvés la capacidad pero no la causa raíz. Probablemente repitas el ciclo.",
+                theory: "Sin rediseñar el contrato psicológico y los espacios de decisión, el senior nuevo va a chocar con la misma dinámica.",
+                score: { cultura: 1, delegacion: 1, escala: 1 },
+              },
+            ],
+          },
+          {
+            code: "03",
+            theme: "Estandarización",
+            scenario: "Un cliente corporativo grande pide un proyecto 100% a medida. Paga bien, tiene prestigio, y vence el plazo de respuesta en 48 horas. Estás justo intentando lanzar el catálogo estandarizado de servicios.",
+            q: "¿Cómo respondés?",
+            options: [
+              {
+                label: "Lo tomás como siempre, a medida. Es plata y marca.",
+                type: "status_quo",
+                reaction: "Ganás el proyecto, perdés el momentum del cambio. Cada excepción entierra un poco más la estandarización.",
+                theory: "Kotter: cada concesión sin urgencia reconstruida debilita la coalición. Socio-técnica: el sistema técnico sigue atrás del social.",
+                score: { cultura: 1, delegacion: 0, escala: 0 },
+              },
+              {
+                label: "Lo declinás para proteger el foco en el catálogo.",
+                type: "purist",
+                reaction: "Coherente, pero desproporcionado. Matás oportunidad por principio.",
+                theory: "Rigidez estratégica: el catálogo tiene que convivir con casos a medida en la transición, no reemplazarlos de golpe.",
+                score: { cultura: 1, delegacion: 1, escala: 1 },
+              },
+              {
+                label: "Lo tomás mapeando cuánto del pedido entra en el catálogo y cuánto no.",
+                type: "hybrid",
+                reaction: "Usás el caso real como piloto: parte estándar, parte a medida, lecciones al catálogo.",
+                theory: "Kotter: victoria temprana visible. Senge: aprendizaje capitalizado por la firma, no por una persona.",
+                score: { cultura: 2, delegacion: 2, escala: 3 },
+              },
+            ],
+          },
+        ];
+
+        const profiles = [
+          { min: 22, title: "Arquitecto Sistémico", desc: "Priorizás construir capacidades por encima de resolver lo inmediato. Riesgo: el corto plazo puede sufrir si no balanceás con victorias visibles." },
+          { min: 15, title: "Líder en Transición", desc: "Mezcla sana entre intervenir y delegar. El próximo salto es confiar más en el sistema que construiste y menos en tu intervención directa." },
+          { min: 8, title: "Gerente Operativo", desc: "Resolvés con eficacia táctica, pero reforzás la dependencia. El desafío: dejar de apagar incendios y empezar a diseñar el sistema que no los prende." },
+          { min: 0, title: "Bombero Estratégico", desc: "Estás atrapado en la operación. La firma no escala más allá de tu capacidad personal. Urgente: delegar, documentar y rediseñar roles." },
+        ];
+
+        function Simulador() {
+          const [stage, setStage] = useState("intro");
+          const [roundIdx, setRoundIdx] = useState(0);
+          const [picks, setPicks] = useState([]);
+          const [showFeedback, setShowFeedback] = useState(null);
+
+          const pick = (i) => setShowFeedback(i);
+          const next = () => {
+            const newPicks = [...picks, showFeedback];
+            setPicks(newPicks);
+            setShowFeedback(null);
+            if (roundIdx + 1 < rounds.length) setRoundIdx(roundIdx + 1);
+            else setStage("result");
+          };
+          const reset = () => { setStage("intro"); setRoundIdx(0); setPicks([]); setShowFeedback(null); };
+
+          const totalScore = picks.reduce((acc, p, i) => {
+            const s = rounds[i].options[p].score;
+            return acc + s.cultura + s.delegacion + s.escala;
+          }, 0);
+          const profile = profiles.find(p => totalScore >= p.min);
+
+          const r = rounds[roundIdx];
+          const fb = showFeedback !== null ? r.options[showFeedback] : null;
+
+          return (
+            <div className="min-h-screen font-sans" style={{ backgroundColor: DARK }}>
+              <div className="max-w-4xl mx-auto px-6 py-10">
+                <div style={{ color: GOLD, fontSize: 11, fontWeight: 700, letterSpacing: "0.2em" }}>
+                  SIMULADOR · VOS SOS EL GG DE IMPROVEET
+                </div>
+
+                {stage === "intro" && (
+                  <div className="mt-6">
+                    <h1 className="text-4xl font-bold text-white">3 dilemas, 3 decisiones.</h1>
+                    <p className="mt-4 text-lg" style={{ color: ICE }}>
+                      Cada ronda presenta un escenario real sobre los tres desafíos de Improveet.
+                      Elegís una decisión y ves las consecuencias según los marcos teóricos.
+                      Al final obtenés tu perfil de liderazgo.
+                    </p>
+                    <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {rounds.map(rd => (
+                        <div key={rd.code} className="p-4 rounded-lg" style={{ backgroundColor: NAVY, borderTop: `3px solid ${GOLD}` }}>
+                          <div style={{ color: GOLD, fontSize: 11, fontWeight: 700 }}>DESAFÍO {rd.code}</div>
+                          <div className="font-bold mt-1 text-white">{rd.theme}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <button onClick={() => setStage("round")}
+                      className="mt-8 px-8 py-3 rounded-lg font-bold transition-transform hover:scale-105"
+                      style={{ backgroundColor: GOLD, color: NAVY }}>
+                      Empezar →
+                    </button>
+                  </div>
+                )}
+
+                {stage === "round" && (
+                  <div className="mt-6">
+                    <div className="flex gap-2 mb-4">
+                      {rounds.map((_, i) => (
+                        <div key={i} className="h-1 flex-1 rounded" style={{
+                          backgroundColor: i < roundIdx ? GOLD : i === roundIdx ? ICE : "#2a3558"
+                        }} />
+                      ))}
+                    </div>
+                    <div style={{ color: GOLD, fontSize: 11, fontWeight: 700, letterSpacing: "0.15em" }}>
+                      RONDA {roundIdx + 1} / 3 · {r.theme.toUpperCase()}
+                    </div>
+                    <div className="mt-4 p-6 rounded-lg" style={{ backgroundColor: NAVY }}>
+                      <div className="text-sm mb-2" style={{ color: ICE, fontWeight: 600 }}>ESCENARIO</div>
+                      <p className="text-lg leading-relaxed text-white">{r.scenario}</p>
+                    </div>
+
+                    <h2 className="mt-6 text-xl font-bold text-white">{r.q}</h2>
+
+                    <div className="mt-4 space-y-3">
+                      {r.options.map((o, i) => {
+                        const selected = showFeedback === i;
+                        const disabled = showFeedback !== null && !selected;
+                        return (
+                          <button key={i} onClick={() => pick(i)} disabled={showFeedback !== null}
+                            className="w-full text-left p-4 rounded-lg transition-all"
+                            style={{
+                              backgroundColor: selected ? GOLD : "white",
+                              color: selected ? NAVY : "#1a1a1a",
+                              opacity: disabled ? 0.4 : 1,
+                              border: `2px solid ${selected ? GOLD : "transparent"}`,
+                              cursor: showFeedback !== null ? "default" : "pointer",
+                            }}>
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm"
+                                style={{ backgroundColor: selected ? NAVY : ICE, color: selected ? GOLD : NAVY }}>
+                                {String.fromCharCode(65 + i)}
+                              </div>
+                              <div className="font-medium">{o.label}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {fb && (
+                      <div className="mt-6 p-6 rounded-lg bg-white">
+                        <div style={{ color: GOLD, fontSize: 11, fontWeight: 700, letterSpacing: "0.15em" }}>CONSECUENCIA</div>
+                        <p className="mt-2 font-semibold" style={{ color: NAVY }}>{fb.reaction}</p>
+                        <div className="mt-4 p-4 rounded border-l-4" style={{ borderColor: NAVY, backgroundColor: ICE }}>
+                          <div className="text-xs font-bold" style={{ color: NAVY }}>LECTURA TEÓRICA</div>
+                          <p className="text-sm mt-1 text-gray-900">{fb.theory}</p>
+                        </div>
+                        <button onClick={next}
+                          className="mt-5 px-6 py-2 rounded font-bold text-white"
+                          style={{ backgroundColor: NAVY }}>
+                          {roundIdx + 1 < rounds.length ? "Siguiente ronda →" : "Ver mi perfil →"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {stage === "result" && (
+                  <div className="mt-6">
+                    <div className="p-8 rounded-xl bg-white text-gray-900">
+                      <div style={{ color: GOLD, fontSize: 11, fontWeight: 700, letterSpacing: "0.2em" }}>
+                        TU PERFIL DE LIDERAZGO
+                      </div>
+                      <h2 className="text-4xl font-bold mt-2" style={{ color: NAVY }}>{profile.title}</h2>
+                      <div className="h-1 w-16 mt-3 mb-5" style={{ backgroundColor: GOLD }} />
+                      <p className="text-lg leading-relaxed">{profile.desc}</p>
+
+                      <div className="mt-6 pt-6 border-t border-gray-200">
+                        <div className="text-sm font-bold mb-3" style={{ color: NAVY }}>TUS DECISIONES</div>
+                        <div className="space-y-3">
+                          {picks.map((p, i) => (
+                            <div key={i} className="flex gap-3 items-start">
+                              <div className="px-2 py-1 rounded text-xs font-bold flex-shrink-0 text-white"
+                                style={{ backgroundColor: NAVY }}>
+                                {rounds[i].code}
+                              </div>
+                              <div className="text-sm text-slate-700">
+                                <span className="font-semibold">{rounds[i].theme}:</span> {rounds[i].options[p].label}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <button onClick={reset}
+                      className="mt-6 px-6 py-3 rounded font-bold"
+                      style={{ backgroundColor: GOLD, color: NAVY }}>
+                      Jugar otra vez
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Simulador />);
+    </script>
+</body>
+</html>
